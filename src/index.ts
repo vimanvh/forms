@@ -1,5 +1,5 @@
 /**
- *  Library for building forms
+ *  Library for building React forms easily
  */
 
 import React from "react";
@@ -28,7 +28,7 @@ export interface Field<TValue> {
 }
 
 /**
- * Form fields definition
+ * Form fields definitions
  */
 export type FieldsOptions<TFields> = {
 	[P in keyof TFields]: FieldOption<TFields[P], TFields>
@@ -58,6 +58,11 @@ export class Form<TFields> {
 	private _readOnly = false;
 	private _subForms: (Form<any> | FormCollection<any>)[] = [];
 
+	/**
+	 * 
+	 * @param options Form options
+	 * @param parent Parent form that subsequently calls some methods of this form
+	 */
 	constructor(private options: FormOptions<TFields>, public parent?: Form<any>) {
 		this.setDefaultFields();
 		if (parent) {
@@ -76,9 +81,6 @@ export class Form<TFields> {
 		});
 	}
 
-	/**
-	 * Set default values for all fields
-	 */
 	private setDefaultFields = () => {
 		for (let i in this.options.fields) {
 			this._fields[i] = {
@@ -96,7 +98,7 @@ export class Form<TFields> {
 	}
 
 	/**
-	 * Vrací zda je hodnota pouze pro čtení
+	 * Returns true if field is read only
 	 */
 	isFieldReadOnly = <TField extends keyof TFields>(field: TField) => {
 		const fieldOptions = this.options.fields[field];
@@ -112,7 +114,7 @@ export class Form<TFields> {
 	}
 
 	/**
-	 * Vrací hodnoty pole
+	 * Returns field value, validation and options
 	 */
 	get = <TField extends keyof TFields>(field: TField) => {
 		return {
@@ -123,7 +125,7 @@ export class Form<TFields> {
 	}
 
 	/**
-	 * Vrací zda je hodnota povinná
+	 * Returns true if field is required
 	 */
 	isFieldRequired = (field: keyof TFields) => {
 		const requiredFlag = this.options.fields[field].required;
@@ -137,13 +139,16 @@ export class Form<TFields> {
 		return false;
 	}
 
+	/**
+	 * Returns title of field
+	 */
 	getFieldTitle = (field: keyof TFields) => {
 		const title = this.options.fields[field].title;
 		return typeof title === "function" ? title(this) : title;
 	}
 
 	/**
-	 * Nastaví hodnotu pole
+	 * Set field value
 	 */
 	set = <TField extends keyof TFields>(field: TField, value: TFields[TField]) => {
 		const options = this.options.fields[field];
@@ -159,14 +164,14 @@ export class Form<TFields> {
 	}
 
 	/**
-	 * Formulář je validován. Avšak nemusí obsahovat validní hodnoty!
+	 * Returns true if form has been validated. (It may still contain invalid values!)
 	 */
 	get validated(): boolean {
 		return this._validated && this._subForms.map(i => i.validated).length === this._subForms.length;
 	}
 
 	/**
-	 * Formulář byl validován a obsahuje validní hodnoty.
+	 * Form has been validated and contains valid values
 	 */
 	get isValid(): boolean {
 		if (!this.validated) {
@@ -183,7 +188,7 @@ export class Form<TFields> {
 	}
 
 	/**
-	 * Provede validaci formuláře
+	 * Validate whole form
 	 */
 	validate = () => {
 		for (let i in this._fields) {
@@ -195,7 +200,7 @@ export class Form<TFields> {
 	}
 
 	/**
-	 * Provede revalidaci fieldu, pokud již byl field validován
+	 * Validate field
 	 */
 	validateField = <TField extends keyof TFields>(field: TField) => {
 		const options = this.options.fields[field];
@@ -203,7 +208,7 @@ export class Form<TFields> {
 	}
 
 	/**
-	 * Odstraní provedené validace
+	 * Clear all validation messages and set form to unvalidated state
 	 */
 	clearValidations = () => {
 		for (let i in this._fields) {
@@ -214,7 +219,7 @@ export class Form<TFields> {
 	}
 
 	/**
-	 * Vrací položky formuláře
+	 * Returns field values
 	 */
 	get fields() {
 		const result: any = {};
@@ -227,7 +232,7 @@ export class Form<TFields> {
 	}
 
 	/**
-	 * Nastaví položky formuláře
+	 * Set fields values
 	 */
 	set fields(fields: Partial<TFields>) {
 		for (let i in this._fields) {
@@ -239,7 +244,7 @@ export class Form<TFields> {
 	}
 
 	/**
-	 * Resetuje položky formuláře
+	 * Set default values for all fields
 	 */
 	clearFields = async () => {
 		this.setDefaultFields();
@@ -248,6 +253,9 @@ export class Form<TFields> {
 		this.handleChangeForm();
 	}
 
+	/**
+	 * Set whole form as readonly
+	 */
 	set readOnly(readOnly: boolean) {
 		this._readOnly = readOnly;
 		for (let i of this._subForms) {
@@ -255,13 +263,16 @@ export class Form<TFields> {
 		}
 	}
 
+	/**
+	 * Return true if whole form is set as readonly
+	 */
 	get readOnly() {
 		return this._readOnly;
 	}
 }
 
 /**
- * Kolekce formulářů
+ * Form collection
  */
 export class FormCollection<TFields> {
 	private subForms: Form<TFields>[];
@@ -276,43 +287,74 @@ export class FormCollection<TFields> {
 		return newForm;
 	}
 
+	/**
+	 * Add new form to collection
+	 */
 	add = () => {
 		return this.addWithOptions(this.options);
 	}
 
+	/**
+	 * 
+	 * Remove form from collections
+	 */
 	remove = (form: Form<TFields>) => {
 		this.subForms = this.subForms.filter(i => i !== form);
 	}
 
+	/**
+	 * Return subforms
+	 */
 	get = () => {
 		return this.subForms;
 	}
 
+	/**
+	 * Validate all subforms
+	 */
 	validate = async () => {
 		this.subForms.forEach(i => i.validate())
 	}
 
+	/**
+	 * Sets all fields in all subforms to default values
+	 */
 	clearFields = () => {
 		this.subForms.forEach(i => i.clearFields())
 	}
 
+	/**
+	 * Clear validations messages in all subforms
+	 */
 	clearValidations = () => {
 		this.subForms.forEach(i => i.clearValidations())
 	}
 
+	/**
+	 * Returns true if all subforms has been validated and are valid
+	 */
 	get isValid() {
 		return this.subForms.length === this.subForms.map(i => i.isValid).length;
 	}
 
+	/**
+	 * Returns true if all subforms has been validated (they may still be invalid!)
+	 */
 	get validated(): boolean {
 		return this.subForms.length === this.subForms.map(i => i.validated).length;
 	}
 
+	/**
+	 * Sets fields values for all subforms
+	 */
 	set fields(fields: TFields[]) {
 		this.subForms = [];
 		fields.forEach(i => { this.add().fields = i; });
 	}
 
+	/**
+	 * Sets readOnly mode for all subforms
+	 */
 	set readOnly(readOnly: boolean) {
 		this.subForms.forEach(i => i.readOnly = readOnly)
 	}
