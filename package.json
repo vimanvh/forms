@@ -1,0 +1,17 @@
+{
+  "name": "forms",
+  "version": "0.0.1",
+  "description": "Creates React forms easily",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc"
+  },
+  "author": "Vit Herman",
+  "license": "ISC",
+  "dependencies": {
+    "@types/react": "^17.0.15",
+    "mobx": "^6.3.2",
+    "react": "^17.0.2",
+    "typescript": "^4.3.5"
+  }
+}
