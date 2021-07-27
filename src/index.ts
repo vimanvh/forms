@@ -275,15 +275,21 @@ export class Form<TFields> {
  * Form collection
  */
 export class FormCollection<TFields> {
-	private subForms: Form<TFields>[];
+	private _subForms: Form<TFields>[];
 
 	constructor(private options: FormOptions<TFields>, public parentForm: Form<any>) {
-		this.subForms = [];
+		this._subForms = [];
+
+		makeObservable<FormCollection<TFields>,
+			"subForms"
+		>(this, {
+			subForms: observable
+		});
 	}
 
 	addWithOptions = (options: FormOptions<TFields>) => {
 		const newForm = new Form<TFields>(options ?? this.options, this.parentForm);
-		this.subForms.push(newForm);
+		this._subForms.push(newForm);
 		return newForm;
 	}
 
@@ -299,56 +305,56 @@ export class FormCollection<TFields> {
 	 * Remove form from collections
 	 */
 	remove = (form: Form<TFields>) => {
-		this.subForms = this.subForms.filter(i => i !== form);
+		this._subForms = this._subForms.filter(i => i !== form);
 	}
 
 	/**
 	 * Return subforms
 	 */
 	get = () => {
-		return this.subForms;
+		return this._subForms;
 	}
 
 	/**
 	 * Validate all subforms
 	 */
 	validate = async () => {
-		this.subForms.forEach(i => i.validate())
+		this._subForms.forEach(i => i.validate())
 	}
 
 	/**
 	 * Sets all fields in all subforms to default values
 	 */
 	clearFields = () => {
-		this.subForms.forEach(i => i.clearFields())
+		this._subForms.forEach(i => i.clearFields())
 	}
 
 	/**
 	 * Clear validations messages in all subforms
 	 */
 	clearValidations = () => {
-		this.subForms.forEach(i => i.clearValidations())
+		this._subForms.forEach(i => i.clearValidations())
 	}
 
 	/**
 	 * Returns true if all subforms has been validated and are valid
 	 */
 	get isValid() {
-		return this.subForms.length === this.subForms.map(i => i.isValid).length;
+		return this._subForms.length === this._subForms.map(i => i.isValid).length;
 	}
 
 	/**
 	 * Returns true if all subforms has been validated (they may still be invalid!)
 	 */
 	get validated(): boolean {
-		return this.subForms.length === this.subForms.map(i => i.validated).length;
+		return this._subForms.length === this._subForms.map(i => i.validated).length;
 	}
 
 	/**
 	 * Sets fields values for all subforms
 	 */
 	set fields(fields: TFields[]) {
-		this.subForms = [];
+		this._subForms = [];
 		fields.forEach(i => { this.add().fields = i; });
 	}
 
@@ -356,6 +362,6 @@ export class FormCollection<TFields> {
 	 * Sets readOnly mode for all subforms
 	 */
 	set readOnly(readOnly: boolean) {
-		this.subForms.forEach(i => i.readOnly = readOnly)
+		this._subForms.forEach(i => i.readOnly = readOnly)
 	}
 }
