@@ -7,11 +7,13 @@
     "build": "tsc"
   },
   "author": "Vit Herman",
-  "license": "ISC",
-  "dependencies": {
+  "license": "MIT",
+  "devDependencies": {
     "@types/react": "^17.0.15",
-    "mobx": "^6.3.2",
-    "react": "^17.0.2",
     "typescript": "^4.3.5"
+  },
+  "dependencies": {
+    "mobx": "^6.3.2",
+    "react": "^17.0.2"
   }
 }
