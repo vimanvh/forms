@@ -6,7 +6,7 @@ import React from "react";
 import { makeObservable, observable } from "mobx";
 
 /**
- * Form field definition
+ * Form field definition type
  */
 export interface FieldOption<TValue, TFields> {
 	title: string | ((form: Form<TFields>) => string);
@@ -20,7 +20,7 @@ export interface FieldOption<TValue, TFields> {
 }
 
 /**
- * Form field value 
+ * Form field value type
  */
 export interface Field<TValue> {
 	value: TValue;
@@ -28,45 +28,52 @@ export interface Field<TValue> {
 }
 
 /**
- * Form fields definitions
+ * Form fields definitions type
  */
 export type FieldsOptions<TFields> = {
 	[P in keyof TFields]: FieldOption<TFields[P], TFields>
 };
 
 /**
- * Form fields values
+ * Form fields values type
  */
 export type Fields<TFields> = {
 	[P in keyof TFields]: Field<TFields[P]>
 };
 
 /**
- * Form options
+ * Form options type
  */
 export interface FormOptions<TFields> {
+
+	/**
+	 * Fields definitions
+	 */
 	fields: FieldsOptions<TFields>;
+
+	/**
+	 * Fired after changing some form value
+	 */
 	onChangeForm?: (form: Form<TFields>) => void;
 }
 
 /**
- * Form
+ * Form definition type
  */
 export class Form<TFields> {
 	private _fields = {} as Fields<TFields>;
 	private _validated = false;
 	private _readOnly = false;
-	private _subForms: (Form<any> | FormCollection<any>)[] = [];
+	private _childs: (Form<any> | FormCollection<any>)[] = [];
 
 	/**
-	 * 
 	 * @param options Form options
 	 * @param parent Parent form that subsequently calls some methods of this form
 	 */
 	constructor(private options: FormOptions<TFields>, public parent?: Form<any>) {
 		this.setDefaultFields();
 		if (parent) {
-			parent._subForms.push(this);
+			parent._childs.push(this);
 		}
 
 		makeObservable<Form<TFields>,
@@ -98,26 +105,10 @@ export class Form<TFields> {
 	}
 
 	/**
-	 * Adds subsequent form
+	 * Adds child (form or form collection)
 	 */
-	addSubForm = (subform: Form<any> | FormCollection<any>) => {
-		this._subForms.push(subform);
-	}
-
-	/**
-	 * Returns true if field is read only
-	 */
-	isFieldReadOnly = <TField extends keyof TFields>(field: TField) => {
-		const fieldOptions = this.options.fields[field];
-		let result = false;
-		if (this.readOnly) {
-			result = true;
-		} else if (typeof fieldOptions.readOnly === "boolean") {
-			result = fieldOptions.readOnly ?? false;
-		} else if (typeof fieldOptions.readOnly === "function") {
-			result = fieldOptions.readOnly(this);
-		}
-		return result;
+	addChild = (child: Form<any> | FormCollection<any>) => {
+		this._childs.push(child);
 	}
 
 	/**
@@ -126,32 +117,8 @@ export class Form<TFields> {
 	get = <TField extends keyof TFields>(field: TField) => {
 		return {
 			...this._fields[field],
-			readOnly: this.isFieldReadOnly(field),
 			options: this.options.fields[field]
 		};
-	}
-
-	/**
-	 * Returns true if field is required
-	 */
-	isFieldRequired = (field: keyof TFields) => {
-		const requiredFlag = this.options.fields[field].required;
-		if (typeof requiredFlag === "boolean") {
-			return requiredFlag;
-		}
-		if (typeof requiredFlag === "function") {
-			return requiredFlag(this);
-		}
-
-		return false;
-	}
-
-	/**
-	 * Returns title of field
-	 */
-	getFieldTitle = (field: keyof TFields) => {
-		const title = this.options.fields[field].title;
-		return typeof title === "function" ? title(this) : title;
 	}
 
 	/**
@@ -171,16 +138,55 @@ export class Form<TFields> {
 	}
 
 	/**
-	 * Returns true if form has been validated. (It may still contain invalid values!)
+	 * Returns true if field is read only
+	 */
+	isFieldReadOnly = <TField extends keyof TFields>(field: TField) => {
+		const fieldOptions = this.options.fields[field];
+		let result = false;
+		if (this.readOnly) {
+			result = true;
+		} else if (typeof fieldOptions.readOnly === "boolean") {
+			result = fieldOptions.readOnly ?? false;
+		} else if (typeof fieldOptions.readOnly === "function") {
+			result = fieldOptions.readOnly(this);
+		}
+		return result;
+	}
+
+	/**
+	 * Returns true if field is required
+	 */
+	isFieldRequired = (field: keyof TFields) => {
+		const requiredFlag = this.options.fields[field].required;
+		if (typeof requiredFlag === "boolean") {
+			return requiredFlag;
+		}
+		if (typeof requiredFlag === "function") {
+			return requiredFlag(this);
+		}
+
+		return false;
+	}
+
+	/**
+	 * Returns title of the field
+	 */
+	getFieldTitle = (field: keyof TFields) => {
+		const title = this.options.fields[field].title;
+		return typeof title === "function" ? title(this) : title;
+	}
+
+	/**
+	 * True if form has been validated. (It may still contain invalid values!)
 	 */
 	get validated(): boolean {
-		return this._validated && this._subForms.map(i => i.validated).length === this._subForms.length;
+		return this._validated && this._childs.map(i => i.validated).length === this._childs.length;
 	}
 
 	/**
 	 * Form has been validated and contains valid values
 	 */
-	get isValid(): boolean {
+	get valid(): boolean {
 		if (!this.validated) {
 			return false;
 		}
@@ -191,7 +197,7 @@ export class Form<TFields> {
 			}
 		}
 
-		return this._subForms.filter(i => i.isValid).length === this._subForms.length;
+		return this._childs.filter(i => i.valid).length === this._childs.length;
 	}
 
 	/**
@@ -203,11 +209,11 @@ export class Form<TFields> {
 			this._fields[i].validation = options.validate ? options.validate(this._fields[i].value, options, this) : ""
 		}
 		this._validated = true;
-		this._subForms.map(i => i.validate());
+		this._childs.map(i => i.validate());
 	}
 
 	/**
-	 * Validate field
+	 * Validate the field
 	 */
 	validateField = <TField extends keyof TFields>(field: TField) => {
 		const options = this.options.fields[field];
@@ -221,8 +227,8 @@ export class Form<TFields> {
 		for (let i in this._fields) {
 			this._fields[i].validation = ""
 		}
+		this._childs.map(i => i.clearValidations());
 		this._validated = false;
-		this._subForms.map(i => i.clearValidations());
 	}
 
 	/**
@@ -256,7 +262,7 @@ export class Form<TFields> {
 	clearFields = async () => {
 		this.setDefaultFields();
 		this._validated = false;
-		this._subForms.map(i => i.clearFields());
+		this._childs.map(i => i.clearFields());
 		this.handleChangeForm();
 	}
 
@@ -265,7 +271,7 @@ export class Form<TFields> {
 	 */
 	set readOnly(readOnly: boolean) {
 		this._readOnly = readOnly;
-		for (let i of this._subForms) {
+		for (let i of this._childs) {
 			i.readOnly = readOnly
 		}
 	}
@@ -282,19 +288,19 @@ export class Form<TFields> {
  * Form collection
  */
 export class FormCollection<TFields> {
-	private subForms: Form<TFields>[];
+	private _forms: Form<TFields>[];
 
-	constructor(private options: FormOptions<TFields>, public parentForm?: Form<any>) {
-		this.subForms = [];
+	constructor(private options: FormOptions<TFields>, public parent?: Form<any>) {
+		this._forms = [];
 
-		if (parentForm) {
-			parentForm.addSubForm(this);
+		if (parent) {
+			parent.addChild(this);
 		}
 
 		makeObservable<FormCollection<TFields>,
-			"subForms"
+			"_forms"
 		>(this, {
-			subForms: observable
+			_forms: observable
 		});
 	}
 
@@ -303,13 +309,13 @@ export class FormCollection<TFields> {
 	 * Add new form to collection with parametrized options
 	 */
 	addWithOptions = (options: FormOptions<TFields>) => {
-		const newForm = new Form<TFields>(options ?? this.options, this.parentForm);
-		this.subForms.push(newForm);
+		const newForm = new Form<TFields>(options ?? this.options, this.parent);
+		this._forms.push(newForm);
 		return newForm;
 	}
 
 	/**
-	 * Add new form to collection
+	 * Add new form to collection with standard options
 	 */
 	add = () => {
 		return this.addWithOptions(this.options);
@@ -317,66 +323,66 @@ export class FormCollection<TFields> {
 
 	/**
 	 * 
-	 * Remove form from collections
+	 * Remove given form
 	 */
 	remove = (form: Form<TFields>) => {
-		this.subForms = this.subForms.filter(i => i !== form);
+		this._forms = this._forms.filter(i => i !== form);
 	}
 
 	/**
-	 * Return subforms
+	 * Return forms
 	 */
 	get = () => {
-		return this.subForms;
+		return this._forms;
 	}
 
 	/**
-	 * Validate all subforms
+	 * Validate all forms
 	 */
 	validate = async () => {
-		this.subForms.forEach(i => i.validate())
+		this._forms.forEach(i => i.validate())
 	}
 
 	/**
-	 * Sets all fields in all subforms to default values
+	 * Sets all fields of all forms to their's default values
 	 */
 	clearFields = () => {
-		this.subForms.forEach(i => i.clearFields())
+		this._forms.forEach(i => i.clearFields())
 	}
 
 	/**
-	 * Clear validations messages in all subforms
+	 * Clear validations messages of all forms
 	 */
 	clearValidations = () => {
-		this.subForms.forEach(i => i.clearValidations())
+		this._forms.forEach(i => i.clearValidations())
 	}
 
 	/**
-	 * Returns true if all subforms has been validated and are valid
+	 * Returns true if all forms has been validated and are valid
 	 */
-	get isValid() {
-		return this.subForms.length === this.subForms.map(i => i.isValid).length;
+	get valid() {
+		return this._forms.length === this._forms.map(i => i.valid).length;
 	}
 
 	/**
-	 * Returns true if all subforms has been validated (they may still be invalid!)
+	 * Returns true if all forms has been validated (they may still be invalid!)
 	 */
 	get validated(): boolean {
-		return this.subForms.length === this.subForms.map(i => i.validated).length;
+		return this._forms.length === this._forms.map(i => i.validated).length;
 	}
 
 	/**
-	 * Sets fields values for all subforms
+	 * Sets fields values for all forms
 	 */
 	set fields(fields: TFields[]) {
-		this.subForms = [];
+		this._forms = [];
 		fields.forEach(i => { this.add().fields = i; });
 	}
 
 	/**
-	 * Sets readOnly mode for all subforms
+	 * Sets readOnly mode for all forms
 	 */
 	set readOnly(readOnly: boolean) {
-		this.subForms.forEach(i => i.readOnly = readOnly)
+		this._forms.forEach(i => i.readOnly = readOnly)
 	}
 }
