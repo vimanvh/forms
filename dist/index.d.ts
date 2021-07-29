@@ -1,9 +1,9 @@
 /**
- *  Library for building forms
+ *  Library for building React forms easily
  */
 import React from "react";
 /**
- * Form field definition
+ * Form field definition type
  */
 export interface FieldOption<TValue, TFields> {
     title: string | ((form: Form<TFields>) => string);
@@ -16,33 +16,39 @@ export interface FieldOption<TValue, TFields> {
     onChange?: (value: TValue, field: FieldOption<TValue, TFields>, form: Form<TFields>) => void;
 }
 /**
- * Form field value
+ * Form field value type
  */
 export interface Field<TValue> {
     value: TValue;
     validation: string;
 }
 /**
- * Form fields definition
+ * Form fields definitions type
  */
 export declare type FieldsOptions<TFields> = {
     [P in keyof TFields]: FieldOption<TFields[P], TFields>;
 };
 /**
- * Form fields values
+ * Form fields values type
  */
 export declare type Fields<TFields> = {
     [P in keyof TFields]: Field<TFields[P]>;
 };
 /**
- * Form options
+ * Form options type
  */
 export interface FormOptions<TFields> {
+    /**
+     * Fields definitions
+     */
     fields: FieldsOptions<TFields>;
+    /**
+     * Fired after changing some form value
+     */
     onChangeForm?: (form: Form<TFields>) => void;
 }
 /**
- * Form
+ * Form definition type
  */
 export declare class Form<TFields> {
     private options;
@@ -50,85 +56,133 @@ export declare class Form<TFields> {
     private _fields;
     private _validated;
     private _readOnly;
-    private _subForms;
-    constructor(options: FormOptions<TFields>, parent?: Form<any> | undefined);
+    private _childs;
     /**
-     * Set default values for all fields
+     * @param options Form options
+     * @param parent Parent form that subsequently calls some methods of this form
      */
+    constructor(options: FormOptions<TFields>, parent?: Form<any> | undefined);
     private setDefaultFields;
     private handleChangeForm;
     /**
-     * Vrací zda je hodnota pouze pro čtení
+     * Adds child (form or form collection)
      */
-    isFieldReadOnly: <TField extends keyof TFields>(field: TField) => boolean;
+    addChild: (child: Form<any> | FormCollection<any>) => void;
     /**
-     * Vrací hodnoty pole
+     * Returns field value, validation and options
      */
     get: <TField extends keyof TFields>(field: TField) => Fields<TFields>[TField] & {
-        readOnly: boolean;
         options: FieldsOptions<TFields>[TField];
     };
     /**
-     * Vrací zda je hodnota povinná
-     */
-    isFieldRequired: (field: keyof TFields) => boolean;
-    getFieldTitle: (field: keyof TFields) => string;
-    /**
-     * Nastaví hodnotu pole
+     * Set field value
      */
     set: <TField extends keyof TFields>(field: TField, value: TFields[TField]) => void;
     /**
-     * Formulář je validován. Avšak nemusí obsahovat validní hodnoty!
+     * Returns true if field is read only
+     */
+    isFieldReadOnly: <TField extends keyof TFields>(field: TField) => boolean;
+    /**
+     * Returns true if field is required
+     */
+    isFieldRequired: (field: keyof TFields) => boolean;
+    /**
+     * Returns title of the field
+     */
+    getFieldTitle: (field: keyof TFields) => string;
+    /**
+     * True if form has been validated. (It may still contain invalid values!)
      */
     get validated(): boolean;
     /**
-     * Formulář byl validován a obsahuje validní hodnoty.
+     * Form has been validated and contains valid values
      */
-    get isValid(): boolean;
+    get valid(): boolean;
     /**
-     * Provede validaci formuláře
+     * Validate whole form
      */
     validate: () => void;
     /**
-     * Provede revalidaci fieldu, pokud již byl field validován
+     * Validate the field
      */
     validateField: <TField extends keyof TFields>(field: TField) => void;
     /**
-     * Odstraní provedené validace
+     * Clear all validation messages and set form to unvalidated state
      */
     clearValidations: () => void;
     /**
-     * Vrací položky formuláře
+     * Returns field values
      */
     get fields(): Partial<TFields>;
     /**
-     * Nastaví položky formuláře
+     * Set fields values
      */
     set fields(fields: Partial<TFields>);
     /**
-     * Resetuje položky formuláře
+     * Set default values for all fields
      */
     clearFields: () => Promise<void>;
+    /**
+     * Set whole form as readonly
+     */
     set readOnly(readOnly: boolean);
+    /**
+     * Return true if whole form is set as readonly
+     */
     get readOnly(): boolean;
 }
 /**
- * Kolekce formulářů
+ * Form collection
  */
 export declare class FormCollection<TFields> {
     private options;
-    parentForm: Form<any>;
-    private subForms;
-    constructor(options: FormOptions<TFields>, parentForm: Form<any>);
+    parent?: Form<any> | undefined;
+    private _forms;
+    constructor(options: FormOptions<TFields>, parent?: Form<any> | undefined);
+    /**
+     *
+     * Add new form to collection with parametrized options
+     */
     addWithOptions: (options: FormOptions<TFields>) => Form<TFields>;
+    /**
+     * Add new form to collection with standard options
+     */
     add: () => Form<TFields>;
+    /**
+     *
+     * Remove given form
+     */
     remove: (form: Form<TFields>) => void;
+    /**
+     * Return forms
+     */
     get: () => Form<TFields>[];
+    /**
+     * Validate all forms
+     */
     validate: () => Promise<void>;
+    /**
+     * Sets all fields of all forms to their's default values
+     */
     clearFields: () => void;
+    /**
+     * Clear validations messages of all forms
+     */
     clearValidations: () => void;
-    get isValid(): boolean;
+    /**
+     * Returns true if all forms has been validated and are valid
+     */
+    get valid(): boolean;
+    /**
+     * Returns true if all forms has been validated (they may still be invalid!)
+     */
     get validated(): boolean;
+    /**
+     * Sets fields values for all forms
+     */
     set fields(fields: TFields[]);
+    /**
+     * Sets readOnly mode for all forms
+     */
     set readOnly(readOnly: boolean);
 }

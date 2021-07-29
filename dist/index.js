@@ -1,6 +1,6 @@
 "use strict";
 /**
- *  Library for building forms
+ *  Library for building React forms easily
  */
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -15,19 +15,20 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.FormCollection = exports.Form = void 0;
 const mobx_1 = require("mobx");
 /**
- * Form
+ * Form definition type
  */
 class Form {
+    /**
+     * @param options Form options
+     * @param parent Parent form that subsequently calls some methods of this form
+     */
     constructor(options, parent) {
         this.options = options;
         this.parent = parent;
         this._fields = {};
         this._validated = false;
         this._readOnly = false;
-        this._subForms = [];
-        /**
-         * Set default values for all fields
-         */
+        this._childs = [];
         this.setDefaultFields = () => {
             for (let i in this.options.fields) {
                 this._fields[i] = {
@@ -43,7 +44,32 @@ class Form {
             }
         };
         /**
-         * Vrací zda je hodnota pouze pro čtení
+         * Adds child (form or form collection)
+         */
+        this.addChild = (child) => {
+            this._childs.push(child);
+        };
+        /**
+         * Returns field value, validation and options
+         */
+        this.get = (field) => {
+            return Object.assign(Object.assign({}, this._fields[field]), { options: this.options.fields[field] });
+        };
+        /**
+         * Set field value
+         */
+        this.set = (field, value) => {
+            const options = this.options.fields[field];
+            this._fields[field].value = value;
+            this._fields[field].validation = this._validated && options.validate ? options.validate(value, options, this) : "";
+            const onChange = this.options.fields[field].onChange;
+            if (onChange) {
+                onChange(value, this.options.fields[field], this);
+            }
+            this.handleChangeForm();
+        };
+        /**
+         * Returns true if field is read only
          */
         this.isFieldReadOnly = (field) => {
             var _a;
@@ -61,13 +87,7 @@ class Form {
             return result;
         };
         /**
-         * Vrací hodnoty pole
-         */
-        this.get = (field) => {
-            return Object.assign(Object.assign({}, this._fields[field]), { readOnly: this.isFieldReadOnly(field), options: this.options.fields[field] });
-        };
-        /**
-         * Vrací zda je hodnota povinná
+         * Returns true if field is required
          */
         this.isFieldRequired = (field) => {
             const requiredFlag = this.options.fields[field].required;
@@ -79,25 +99,15 @@ class Form {
             }
             return false;
         };
+        /**
+         * Returns title of the field
+         */
         this.getFieldTitle = (field) => {
             const title = this.options.fields[field].title;
             return typeof title === "function" ? title(this) : title;
         };
         /**
-         * Nastaví hodnotu pole
-         */
-        this.set = (field, value) => {
-            const options = this.options.fields[field];
-            this._fields[field].value = value;
-            this._fields[field].validation = this._validated && options.validate ? options.validate(value, options, this) : "";
-            const onChange = this.options.fields[field].onChange;
-            if (onChange) {
-                onChange(value, this.options.fields[field], this);
-            }
-            this.handleChangeForm();
-        };
-        /**
-         * Provede validaci formuláře
+         * Validate whole form
          */
         this.validate = () => {
             for (let i in this._fields) {
@@ -105,37 +115,37 @@ class Form {
                 this._fields[i].validation = options.validate ? options.validate(this._fields[i].value, options, this) : "";
             }
             this._validated = true;
-            this._subForms.map(i => i.validate());
+            this._childs.map(i => i.validate());
         };
         /**
-         * Provede revalidaci fieldu, pokud již byl field validován
+         * Validate the field
          */
         this.validateField = (field) => {
             const options = this.options.fields[field];
             this._fields[field].validation = options.validate ? options.validate(this._fields[field].value, options, this) : "";
         };
         /**
-         * Odstraní provedené validace
+         * Clear all validation messages and set form to unvalidated state
          */
         this.clearValidations = () => {
             for (let i in this._fields) {
                 this._fields[i].validation = "";
             }
+            this._childs.map(i => i.clearValidations());
             this._validated = false;
-            this._subForms.map(i => i.clearValidations());
         };
         /**
-         * Resetuje položky formuláře
+         * Set default values for all fields
          */
         this.clearFields = () => __awaiter(this, void 0, void 0, function* () {
             this.setDefaultFields();
             this._validated = false;
-            this._subForms.map(i => i.clearFields());
+            this._childs.map(i => i.clearFields());
             this.handleChangeForm();
         });
         this.setDefaultFields();
         if (parent) {
-            parent._subForms.push(this);
+            parent._childs.push(this);
         }
         mobx_1.makeObservable(this, {
             _fields: mobx_1.observable,
@@ -144,15 +154,15 @@ class Form {
         });
     }
     /**
-     * Formulář je validován. Avšak nemusí obsahovat validní hodnoty!
+     * True if form has been validated. (It may still contain invalid values!)
      */
     get validated() {
-        return this._validated && this._subForms.map(i => i.validated).length === this._subForms.length;
+        return this._validated && this._childs.map(i => i.validated).length === this._childs.length;
     }
     /**
-     * Formulář byl validován a obsahuje validní hodnoty.
+     * Form has been validated and contains valid values
      */
-    get isValid() {
+    get valid() {
         if (!this.validated) {
             return false;
         }
@@ -161,10 +171,10 @@ class Form {
                 return false;
             }
         }
-        return this._subForms.filter(i => i.isValid).length === this._subForms.length;
+        return this._childs.filter(i => i.valid).length === this._childs.length;
     }
     /**
-     * Vrací položky formuláře
+     * Returns field values
      */
     get fields() {
         const result = {};
@@ -175,7 +185,7 @@ class Form {
         return result;
     }
     /**
-     * Nastaví položky formuláře
+     * Set fields values
      */
     set fields(fields) {
         for (let i in this._fields) {
@@ -184,61 +194,108 @@ class Form {
         }
         this.handleChangeForm();
     }
+    /**
+     * Set whole form as readonly
+     */
     set readOnly(readOnly) {
         this._readOnly = readOnly;
-        for (let i of this._subForms) {
+        for (let i of this._childs) {
             i.readOnly = readOnly;
         }
     }
+    /**
+     * Return true if whole form is set as readonly
+     */
     get readOnly() {
         return this._readOnly;
     }
 }
 exports.Form = Form;
 /**
- * Kolekce formulářů
+ * Form collection
  */
 class FormCollection {
-    constructor(options, parentForm) {
+    constructor(options, parent) {
         this.options = options;
-        this.parentForm = parentForm;
+        this.parent = parent;
+        /**
+         *
+         * Add new form to collection with parametrized options
+         */
         this.addWithOptions = (options) => {
-            const newForm = new Form(options !== null && options !== void 0 ? options : this.options, this.parentForm);
-            this.subForms.push(newForm);
+            const newForm = new Form(options !== null && options !== void 0 ? options : this.options, this.parent);
+            this._forms.push(newForm);
             return newForm;
         };
+        /**
+         * Add new form to collection with standard options
+         */
         this.add = () => {
             return this.addWithOptions(this.options);
         };
+        /**
+         *
+         * Remove given form
+         */
         this.remove = (form) => {
-            this.subForms = this.subForms.filter(i => i !== form);
+            this._forms = this._forms.filter(i => i !== form);
         };
+        /**
+         * Return forms
+         */
         this.get = () => {
-            return this.subForms;
+            return this._forms;
         };
+        /**
+         * Validate all forms
+         */
         this.validate = () => __awaiter(this, void 0, void 0, function* () {
-            this.subForms.forEach(i => i.validate());
+            this._forms.forEach(i => i.validate());
         });
+        /**
+         * Sets all fields of all forms to their's default values
+         */
         this.clearFields = () => {
-            this.subForms.forEach(i => i.clearFields());
+            this._forms.forEach(i => i.clearFields());
         };
+        /**
+         * Clear validations messages of all forms
+         */
         this.clearValidations = () => {
-            this.subForms.forEach(i => i.clearValidations());
+            this._forms.forEach(i => i.clearValidations());
         };
-        this.subForms = [];
+        this._forms = [];
+        if (parent) {
+            parent.addChild(this);
+        }
+        mobx_1.makeObservable(this, {
+            _forms: mobx_1.observable
+        });
     }
-    get isValid() {
-        return this.subForms.length === this.subForms.map(i => i.isValid).length;
+    /**
+     * Returns true if all forms has been validated and are valid
+     */
+    get valid() {
+        return this._forms.length === this._forms.map(i => i.valid).length;
     }
+    /**
+     * Returns true if all forms has been validated (they may still be invalid!)
+     */
     get validated() {
-        return this.subForms.length === this.subForms.map(i => i.validated).length;
+        return this._forms.length === this._forms.map(i => i.validated).length;
     }
+    /**
+     * Sets fields values for all forms
+     */
     set fields(fields) {
-        this.subForms = [];
+        this._forms = [];
         fields.forEach(i => { this.add().fields = i; });
     }
+    /**
+     * Sets readOnly mode for all forms
+     */
     set readOnly(readOnly) {
-        this.subForms.forEach(i => i.readOnly = readOnly);
+        this._forms.forEach(i => i.readOnly = readOnly);
     }
 }
 exports.FormCollection = FormCollection;
