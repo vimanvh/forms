@@ -1,2 +1,2 @@
 # forms
-Library for simplyfiyng building forms in React application using MobX state management 
+Library to simplify building of forms in React using MobX state management 
